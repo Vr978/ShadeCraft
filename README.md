@@ -23,7 +23,7 @@ The **Gradient-Aware Refinement Block (GARB)** is inserted between the ControlNe
 
 ## 📄 Abstract
 
-Urban heat exposure is a growing public-health concern in hot-arid regions, where limited vegetation and dense built environments intensify surface temperatures. DeepShade [1] — a diffusion-based, text-conditioned framework — offers a notable step forward by integrating satellite imagery, OpenStreetMap building geometries, and 3D simulation pipelines to generate time-aware shade maps. However, the generated shade lines often show **softened boundaries and minor geometric misalignment**, reflecting limitations in the current ControlNet-based conditioning.
+Urban heat exposure is a growing public-health concern in hot-arid regions, where limited vegetation and dense built environments intensify surface temperatures. DeepShade [1]: a diffusion-based, text-conditioned framework offers a notable step forward by integrating satellite imagery, OpenStreetMap building geometries, and 3D simulation pipelines to generate time-aware shade maps. However, the generated shade lines often show **softened boundaries and minor geometric misalignment**, reflecting limitations in the current ControlNet-based conditioning.
 
 In this project, we replicate the DeepShade pipeline and introduce a lightweight architectural improvement to enhance boundary precision. Drawing inspiration from structural refinement modules in ShadowGAN [9] and Deep Umbra [5], we incorporate a **Gradient-Aware Refinement Block (GARB)** following the ControlNet backbone. This block fuses multi-scale gradient features derived from both the input edge image and the intermediate latent representation, enabling the model to better preserve high-frequency shadow contours and building outlines.
 
