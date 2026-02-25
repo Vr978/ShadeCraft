@@ -7,7 +7,8 @@
 
 > **Replicating and improving the DeepShade diffusion framework for high-resolution shade simulation in hot-arid cities, augmented with a Gradient-Aware Refinement Block (GARB) for sharper, more geometrically accurate shadow boundaries.**
 
-**Author:** Vraj Ashokbhai Chaudhari — Ira A. Fulton Schools of Engineering, Arizona State University
+**Authors:** Vraj Chaudhari · [Tejas Uttare](https://github.com/Pegasus1106) · Atharva Shirode · Austin Jones  
+*Ira A. Fulton Schools of Engineering, Arizona State University*
 
 ---
 
@@ -234,6 +235,15 @@ jupyter notebook ControlNet/a_inference/analyze.ipynb
 We extend our sincere gratitude to:
 
 - **Longchao Da, Xiangrui Liu, Mithun Shivakoti, Thirulogasankar Pranav Kutralingam, Yezhou Yang, and Hua Wei** — the authors of **DeepShade** ([arXiv:2507.12103](https://arxiv.org/abs/2507.12103)), whose open-source framework and dataset formed the foundation of this project. ShadeCraft is built directly on top of their work and would not exist without it.
+
+## 👥 Contributors
+
+| Name | GitHub |
+|---|---|
+| Vraj Chaudhari | [@Vr978](https://github.com/Vr978) |
+| Tejas Uttare | [@Pegasus1106](https://github.com/Pegasus1106) |
+| Atharva Shirode | — |
+| Austin Jones | — |
 
 - **The Sol Supercomputer Team at ASU** — for providing the computational resources necessary to train the baseline model.
 
