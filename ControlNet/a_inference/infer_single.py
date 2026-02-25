@@ -3,14 +3,13 @@ import cv2
 import json
 import numpy as np
 import sys
-sys.path.append("/scratch/YOURNAME/project/plantShade/ControlNet")
+sys.path.append("/scratch/tuttare/DeepShade_repo/ControlNet")
 from cldm.model import create_model, load_state_dict
 from ldm.models.diffusion.ddim import DDIMSampler
-
 # Model and Configurations
 # resume_path = '/scratch/YOURNAME/project/plantShade/ControlNet/models/epoch_51_step_1351.ckpt'
-resume_path = "/scratch/YOURNAME/project/plantShade/ControlNet/0out/ControlNet_vanilla_Plant/2025-09-30_23-57-05/periodic/epoch-epoch=99.ckpt"
-model = create_model('/scratch/YOURNAME/project/plantShade/ControlNet/models/cldm_v21.yaml').to('cuda')  # Move model to GPU
+resume_path = "/scratch/tuttare/DeepShade_repo/logs/ControlNet_vanilla_Tempe/2025-11-29_02-44-48/final_model.ckpt"
+model = create_model('/scratch/tuttare/DeepShade_repo/ControlNet/models/cldm_v21.yaml').to('cuda')  # Move model to GPU
 model.load_state_dict(load_state_dict(resume_path, location='cuda:0'))  # Load weights on GPU
 
 # Set model parameters as in training
@@ -32,7 +31,7 @@ sampler = DDIMSampler(model)
 class MyDataset:
     def __init__(self):
         self.data = []
-        with open('/scratch/YOURNAME/project/plantShade/evaluation/output_10.json', 'rt') as f:
+        with open('/scratch/tuttare/DeepShade_repo/dataset/Tempe/train_ok.json', 'rt') as f:
             for line in f:
                 self.data.append(json.loads(line))
 
@@ -143,7 +142,7 @@ index = 1  # Image index in dataset
 # custom_prompt = "solar_declincation: -20.722542433072444, angle: -120.0, time_of_day:14"
 
 # case10
-# custom_prompt = "solar_declincation: -20.722542433072444, angle: -135.0, time_of_day:15"
+custom_prompt = "solar_declincation: -20.722542433072444, angle: -135.0, time_of_day:15"
 
 # case11
 # custom_prompt = "solar_declincation: -20.722542433072444, angle: -150.0, time_of_day:16"
@@ -160,7 +159,7 @@ index = 1  # Image index in dataset
 result_image = generate_image(index, custom_prompt)
 
 
-folder_save = "/scratch/YOURNAME/project/plantShade/evaluation/plantTopV0/epoch100/"
+folder_save = "/scratch/tuttare/DeepShade_repo/dataset/Tempe/results/"
 cv2.imwrite(folder_save + "generated_result_case10.png", cv2.cvtColor(result_image, cv2.COLOR_RGB2BGR))
 
 

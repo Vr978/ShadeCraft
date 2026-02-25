@@ -78,7 +78,7 @@ class ImageLogger(Callback):
     def check_frequency(self, check_idx):
         return check_idx % self.batch_freq == 0
 
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         if not self.disabled:
             self.log_img(pl_module, batch, batch_idx, split="train")
 
@@ -104,7 +104,7 @@ class ImageLogger(Callback):
             
 
 #     @rank_zero_only
-#     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+#     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
 #         # Explicitly access and append specific metrics
 #         logged_metrics = trainer.logged_metrics
 
@@ -175,7 +175,7 @@ class LossLogger(Callback):
             
 
     @rank_zero_only
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         # Explicitly access and append specific metrics
         logged_metrics = trainer.logged_metrics
 
