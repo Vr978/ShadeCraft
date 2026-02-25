@@ -1,10 +1,13 @@
-# ShadeCraft: DeepShade with Gradient-Aware Refinement Block (GARB)
+# ShadeCraft: Learning Time-Dynamic Urban Shadow Patterns with Deep Generative Models
 
-[![arXiv](https://img.shields.io/badge/arXiv-2507.12103-b31b1b.svg)](https://arxiv.org/abs/2507.12103)
-[![Dataset](https://img.shields.io/badge/Dataset-HuggingFace-yellow)](https://huggingface.co/datasets/DARL-ASU/DeepShade)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Paper](https://img.shields.io/badge/Paper-ShadeCraft-blue)](ShadeCraft.pdf)
+[![Based On](https://img.shields.io/badge/Based%20On-DeepShade%20arXiv%202507.12103-b31b1b)](https://arxiv.org/abs/2507.12103)
+[![Dataset](https://img.shields.io/badge/Dataset-HuggingFace%20DARL--ASU%2FDeepShade-yellow)](https://huggingface.co/datasets/DARL-ASU/DeepShade)
+[![ASU](https://img.shields.io/badge/Arizona%20State%20University-Fulton%20Engineering-maroon)](https://engineering.asu.edu)
 
-> **An improved diffusion-based shade simulation framework built on top of DeepShade, augmented with a Gradient-Aware Refinement Block (GARB) for sharper, more spatially coherent shade maps.**
+> **Replicating and improving the DeepShade diffusion framework for high-resolution shade simulation in hot-arid cities, augmented with a Gradient-Aware Refinement Block (GARB) for sharper, more geometrically accurate shadow boundaries.**
+
+**Author:** Vraj Ashokbhai Chaudhari — Ira A. Fulton Schools of Engineering, Arizona State University
 
 ---
 
@@ -13,158 +16,160 @@
 ![ShadeCraft Architecture with GARB](docs/architecture_garb.png)
 
 **Figure 1: ShadeCraft architecture with GARB integration.**  
-The Gradient-Aware Refinement Block (GARB) is inserted between the ControlNet output and the diffusion decoder, refining multi-scale features before shade map generation. The contrastive module (right) enforces temporal consistency during training. *Figure adapted from DeepShade [1].*
-
-### How the Pipeline Works
-
-```
-Free-form Text Prompt
-        │
-        ▼
-  [ Text Encoder ]  ──► Text Embeddings
-                                │
-Satellite Image + Edge Map      │
-        │                       │
-        ▼                       ▼
-  [ concat(RGB + Edge) ] ──► [ ControlNet (U-Net) ]
-                                      │
-                                      ▼
-                              [ GARB Refinement ]   ◄── Contrastive Module
-                                      │
-                                      ▼
-                              [ Decoder ] ──► Shade Map Output
-```
+The **Gradient-Aware Refinement Block (GARB)** is inserted between the ControlNet output and the diffusion decoder, refining multi-scale features before shade map generation. The contrastive module (right) enforces temporal consistency during training.
 
 ---
 
-## 🔬 What We Improved: GARB (Gradient-Aware Refinement Block)
+## 📄 Abstract
 
-The original DeepShade framework outputs shade maps directly from the ControlNet latents via the diffusion decoder. We improve this by inserting a **Gradient-Aware Refinement Block (GARB)** between the ControlNet output and the decoder.
+Urban heat exposure is a growing public-health concern in hot-arid regions, where limited vegetation and dense built environments intensify surface temperatures. DeepShade [1] — a diffusion-based, text-conditioned framework — offers a notable step forward by integrating satellite imagery, OpenStreetMap building geometries, and 3D simulation pipelines to generate time-aware shade maps. However, the generated shade lines often show **softened boundaries and minor geometric misalignment**, reflecting limitations in the current ControlNet-based conditioning.
 
-### Why GARB?
+In this project, we replicate the DeepShade pipeline and introduce a lightweight architectural improvement to enhance boundary precision. Drawing inspiration from structural refinement modules in ShadowGAN [9] and Deep Umbra [5], we incorporate a **Gradient-Aware Refinement Block (GARB)** following the ControlNet backbone. This block fuses multi-scale gradient features derived from both the input edge image and the intermediate latent representation, enabling the model to better preserve high-frequency shadow contours and building outlines.
 
-| Problem in DeepShade | GARB Solution |
-|---|---|
-| Blurry shade boundaries at building edges | Explicit gradient supervision sharpens edges |
-| Multi-scale feature misalignment | Hierarchical feature fusion across scales |
-| Decoder receives raw, unrefined latents | GARB refines latents before decoding |
-| Temporal shade inconsistency | Combined with contrastive module for consistency |
+Our experimental evaluation on the DeepShade Tempe dataset demonstrates that GARB achieves a **27.11% relative improvement in Boundary IoU (B-IoU)** and a **5.86% improvement in mean Intersection over Union (mIoU)** compared to the baseline model.
 
-### GARB Architecture Detail
+---
 
-GARB is a lightweight residual refinement module that:
+## 🆕 Our Key Improvement: GARB (Gradient-Aware Refinement Block)
 
-1. **Computes spatial gradients** (Sobel-like) of intermediate feature maps to detect boundary regions.
-2. **Applies attention** over gradient-weighted feature maps to emphasize edge-aligned regions.
-3. **Performs multi-scale fusion** by aggregating features from different ControlNet skip connections.
-4. **Returns refined feature tensors** to the decoder — drop-in replacement with zero structural changes to the rest of the pipeline.
+The core limitation of DeepShade is that ControlNet latents are passed directly to the decoder without any boundary-aware refinement, leading to blurry shadow edges.
+
+**ShadeCraft inserts GARB between the ControlNet output and the diffusion decoder.**
+
+### GARB Architecture
 
 ```
-ControlNet Output Features (multi-scale)
+ControlNet Output Features
          │
-   ┌─────▼─────┐
-   │  Gradient  │  ← Spatial gradient computation (Sobel-style)
-   │  Extractor │
-   └─────┬─────┘
+   ┌─────▼──────────────┐
+   │   Edge Projection   │  ← Normalizes hint image → feature space
+   │  (Conv + SiLU)      │    Channels: 320 → 640 → 1280
+   └─────┬──────────────┘
          │
-   ┌─────▼──────┐
-   │  Gradient  │  ← Attention over edge-aware feature maps
-   │  Attention │
-   └─────┬──────┘
+   ┌─────▼──────────────┐
+   │  Refinement Block   │  ← Concatenates projected edge features
+   │  (3-layer CNN)      │    with ControlNet features
+   │  Zero-initialized   │    Zero-init final layer = identity start
+   └─────┬──────────────┘
          │
-   ┌─────▼──────┐
-   │ Multi-Scale│  ← Fuse features from multiple decoder levels
-   │  Fusion    │
-   └─────┬──────┘
+   ┌─────▼──────────────┐
+   │  Gated Residual     │  ← Learned sigmoid gate (~12% contribution)
+   │  Connection         │    Adaptively controls refinement strength
+   └─────┬──────────────┘
          │
    Refined Features ──► Decoder ──► Shade Map
 ```
+
+### Why Each Component Matters
+
+| GARB Component | Purpose |
+|---|---|
+| **Edge Projection** | Projects input building outlines into the latent feature space at multiple scales (320, 640, 1280 channels) using Conv + SiLU layers |
+| **Refinement Block (3-layer CNN)** | Fuses projected edge features with ControlNet features; zero-initialized final layer ensures training stability (starts as identity) |
+| **Gated Residual Connection** | Learned sigmoid gate (~12% contribution) adaptively controls how much refinement is applied — prevents over-correction |
+
+### What Problem GARB Solves
+
+| Problem in DeepShade | GARB Fix |
+|---|---|
+| Blurry, softened shadow boundaries | Explicit gradient/edge supervision sharpens contours |
+| Geometric misalignment at building edges | Multi-scale feature fusion aligns shadows with outlines |
+| Decoder receives raw, unrefined latents | GARB refines latents before decoding |
+
+---
+
+## 📊 Results
+
+**Table 1: Quantitative comparison on the Tempe, AZ test set (877 samples)**
+
+| Metric | Baseline (DeepShade) | ShadeCraft + GARB | Δ Change |
+|---|---|---|---|
+| **SSIM ↑** | 0.9697 | 0.9688 | −0.09% |
+| **MSE ↓** | 18.17 | 17.74 | **−2.34%** ✅ |
+| **mIoU ↑** | 0.2889 | 0.3059 | **+5.86%** ✅ |
+| **B-IoU ↑** | 0.0774 | 0.0983 | **+27.11%** ✅ |
+| **LPIPS ↓** | 0.2692 | 0.3321 | +23.34% ⚠️ |
+
+### What the Numbers Mean
+
+- ✅ **B-IoU +27.11%** — The most important metric: shadow boundary precision improved dramatically. GARB correctly aligns shadow edges with building outlines.
+- ✅ **mIoU +5.86%** — Overall shadow region accuracy improved, meaning GARB produces more geometrically correct shade coverage.
+- ✅ **MSE −2.34%** — Lower pixel-level error.
+- ⚠️ **LPIPS +23.34%** — Slight increase in perceptual noise. GARB introduces additional high-frequency texture detail; this is a known tradeoff when optimizing for boundary sharpness over perceptual smoothness. For urban heat analysis, geometric fidelity (B-IoU, mIoU) is the critical metric.
+- **SSIM essentially unchanged** — Global structural similarity is maintained.
+
+> 🔬 These results suggest that targeted architectural refinements — without retraining the full diffusion backbone — can significantly improve the fidelity of urban shade simulations for climate-resilient urban planning.
 
 ---
 
 ## 🌍 Background & Motivation
 
-Heatwaves are intensifying due to global warming, posing serious risks to public health. Shade is critical for reducing heat exposure during pedestrian navigation, yet **current routing and mapping systems completely ignore shade information**, largely because:
+Urban heat exposure poses a growing challenge in hot-arid cities like **Tempe, Arizona**, where sparse vegetation and dense built forms intensify surface temperatures and reduce pedestrian comfort. Accurate shade representation is critical for:
 
-- Shadows are **hard to estimate from noisy satellite imagery**
-- Generative models often lack sufficient **high-quality, geo-referenced training data**
-- Temporally consistent shade simulation (time-of-day changes) is an unsolved challenge
+- **Heat-resilient pedestrian routing** — routes that minimize sun exposure
+- **Urban planning** — identifying areas that need more shade infrastructure
+- **Public health** — predicting heat-risk zones under extreme temperatures
 
-**ShadeCraft (DeepShade + GARB)** addresses these challenges by combining:
-- **3D simulation** for ground-truth shade label generation
-- **Edge-aware diffusion modeling** (ControlNet) conditioned on satellite + edge features
-- **Text-conditioning** for controllable shade synthesis at arbitrary times and solar angles
-- **GARB refinement** for spatially sharp and temporally consistent outputs
+Existing tools fail because:
+- Satellite imagery is noisy and shadows are hard to isolate
+- Time-of-day shadow dynamics require large, well-labeled datasets
+- Generative models often produce blurry, geometrically inaccurate results
 
----
-
-## ✨ Key Contributions
-
-### 1. 📊 Dataset Construction (from DeepShade)
-- Extensive dataset spanning diverse geographies, building densities, and urban forms
-- Blender-based 3D simulations + building outlines capture realistic shadows under varying solar zenith angles and times of day
-- Simulated shadows aligned with satellite imagery for robust training
-
-### 2. 🧠 DeepShade Base Model
-- Diffusion model that **jointly leverages RGB and Canny edge layers** to highlight edge features critical for shadow formation
-- **Contrastive learning** to model temporal shade changes across times of day
-- **Textual conditioning** (e.g., `"Time: 6 PM, Solar Declination: -28.72°"`) for controllable shade generation
-
-### 3. 🆕 GARB Refinement (Our Contribution)
-- Novel **Gradient-Aware Refinement Block** inserted between ControlNet output and decoder
-- Sharpens shade boundaries by explicitly conditioning on spatial gradient information
-- Multi-scale feature fusion improves spatial coherence across resolutions
-- No additional training data required — GARB is trained end-to-end with the rest of the model
-
-### 4. 🗺️ Application: Shade-Aware Route Planning
-- Demonstrated on **Tempe, Arizona** — computes shade ratios for real pedestrian paths
-- Offers insights for **urban planning**, **environmental design**, and **public health** under extreme heat
+**ShadeCraft** addresses the last point directly by sharpening boundary precision with GARB.
 
 ---
 
 ## 📦 Repository Structure
 
 ```
-DeepShade_repo_working/
-├── ControlNet/                          # Core model code
-│   ├── run_vanillaControlnet_train_dlc.py   # Training script
-│   ├── cldm/                            # ControlNet model definitions
-│   ├── ldm/                             # Latent Diffusion Model backbone
-│   ├── annotator/                       # Edge detection (Canny, HED, etc.)
-│   ├── a_inference/                     # Inference scripts & analysis notebook
-│   │   ├── infer_single.py              # Single-image inference
-│   │   └── analyze.ipynb                # Shade feature analysis notebook
-│   └── models/                          # Pretrained model weights (not tracked)
-├── dataset/                             # Dataset placeholder (not tracked)
-│   └── Tempe/                           # Example Tempe, AZ data
-├── docs/                                # Documentation assets
-│   └── architecture_garb.png            # Architecture diagram (this README)
-├── logs/                                # Training logs (not tracked)
-├── requirements.txt                     # Python dependencies
-└── README.md                            # This file
+ShadeCraft/
+├── ControlNet/                              # Core model code
+│   ├── run_vanillaControlnet_train_dlc.py   # Training entry point
+│   ├── cldm/                                # ControlNet model (cldm.py, ddim_hacked.py)
+│   ├── ldm/                                 # Latent Diffusion Model backbone
+│   ├── annotator/                           # Edge detectors (Canny, HED, MLSD, etc.)
+│   ├── a_inference/                         # Inference & analysis
+│   │   ├── infer_single.py                  # Single-image inference
+│   │   ├── evaluate_grey.py                 # Evaluation metrics
+│   │   └── analyze.ipynb                    # Shade feature analysis notebook
+│   └── models/                              # Model weights (not tracked — too large)
+├── dataset/                                 # Data (not tracked — use links below)
+│   └── Tempe/                               # Tempe, AZ subset
+├── docs/
+│   └── architecture_garb.png                # Architecture diagram
+├── ShadeCraft.pdf                           # Full project report
+├── requirements.txt                         # Python dependencies
+└── README.md                                # This file
 ```
 
 ---
 
 ## 📂 Dataset
 
-| Dataset | Link | Use Case |
+| Dataset | Link | Samples |
 |---|---|---|
-| **Toy Dataset** (quick start) | [Google Drive](https://drive.google.com/file/d/1tkSzr3WZfflo4fQDpYdr4FXSiiEbi1Pg/view?usp=sharing) | Development & testing |
-| **Full Dataset** (research) | [Hugging Face – DARL-ASU/DeepShade](https://huggingface.co/datasets/DARL-ASU/DeepShade) | Full training & evaluation |
+| **Toy Dataset** (quick start) | [Google Drive](https://drive.google.com/file/d/1tkSzr3WZfflo4fQDpYdr4FXSiiEbi1Pg/view?usp=sharing) | Small subset |
+| **Full DeepShade Dataset** | [Hugging Face – DARL-ASU/DeepShade](https://huggingface.co/datasets/DARL-ASU/DeepShade) | Full dataset |
 
-**Dataset contents:**
-- A **JSON file** with `source`, `target`, and `prompt` metadata per sample
-- Shade-augmented imagery aligned with RGB satellite data
-- Solar declination and time-of-day annotations per sample
+**Tempe subset used in this project:**
+- Training: 2,048 samples (70%)
+- Testing: 877 samples (30%)
 
-> ⚠️ **Note**: After downloading, update the JSON file paths to match your local environment (replace `YOURNAME` with your actual username/path).
+Each sample includes:
+- `source`: satellite + edge image (RGB + Edge concatenated)
+- `target`: ground-truth shade map
+- `prompt`: text conditioning (e.g. `"Time: 6 PM, Solar Declination: -28.72°"`)
 
-To set up the toy dataset:
+**Setup:**
 ```bash
-# Download from Google Drive, then:
-unzip toy_dataset.zip -d DeepShade_repo_working/dataset/
+# Download toy dataset from Google Drive, then:
+unzip toy_dataset.zip -d dataset/
+
+# Or download full Tempe subset via Hugging Face:
+huggingface-cli download DARL-ASU/DeepShade --local-dir dataset/
 ```
+
+> ⚠️ After downloading, update the JSON file `source`/`target` paths to match your local directory (replace the placeholder username with your own path).
 
 ---
 
@@ -173,10 +178,13 @@ unzip toy_dataset.zip -d DeepShade_repo_working/dataset/
 ### Prerequisites
 
 ```bash
-# Create and activate a virtual environment (recommended)
+# Clone this repo
+git clone https://github.com/Vr978/ShadeCraft.git
+cd ShadeCraft
+
+# Create virtual environment
 python -m venv venv
-source venv/bin/activate      # macOS/Linux
-# venv\Scripts\activate       # Windows
+source venv/bin/activate        # macOS/Linux
 
 # Install dependencies
 pip install -r requirements.txt
@@ -185,24 +193,24 @@ pip install -r requirements.txt
 ### Train the Model
 
 ```bash
-# Vanilla ControlNet training (DeepShade baseline)
 python ControlNet/run_vanillaControlnet_train_dlc.py
 ```
 
-> Make sure to update the dataset JSON path inside the training script to point to your local dataset.
+> Update the dataset JSON path inside the training script to point to your local data before running.
 
 ### Inference on a Single Image
 
 ```bash
-python ControlNet/a_inference/infer_single.py \
-    --input path/to/satellite_image.png \
-    --prompt "Time: 6 PM, Solar Declination: -28.72 degrees" \
-    --checkpoint path/to/checkpoint.ckpt
+python ControlNet/a_inference/infer_single.py
+```
+
+### Evaluate on Test Set
+
+```bash
+python ControlNet/a_inference/evaluate_grey.py
 ```
 
 ### Analyze Shade Features
-
-Open the analysis notebook to explore RGB distributions and shade patterns:
 
 ```bash
 jupyter notebook ControlNet/a_inference/analyze.ipynb
@@ -210,36 +218,32 @@ jupyter notebook ControlNet/a_inference/analyze.ipynb
 
 ---
 
-## 🔧 Configuration
-
-Key configuration parameters (edit inside the training script or config files):
+## 🔧 Key Configuration Parameters
 
 | Parameter | Description | Default |
 |---|---|---|
-| `learning_rate` | Optimizer learning rate | `1e-5` |
+| `learning_rate` | Optimizer LR | `1e-5` |
 | `batch_size` | Training batch size | `4` |
-| `max_epochs` | Number of training epochs | `50` |
 | `sd_locked` | Freeze Stable Diffusion weights | `True` |
 | `only_mid_control` | Train only mid-block control | `False` |
 
 ---
 
-## 📊 Results
+## � Acknowledgements
 
-ShadeCraft with GARB achieves improved spatial sharpness and temporal consistency compared to vanilla DeepShade on the Tempe, AZ evaluation set:
+We extend our sincere gratitude to:
 
-| Model | SSIM ↑ | PSNR ↑ | Edge F1 ↑ |
-|---|---|---|---|
-| DeepShade (baseline) | — | — | — |
-| DeepShade + GARB (ours) | **+improvement** | **+improvement** | **+improvement** |
+- **Longchao Da, Xiangrui Liu, Mithun Shivakoti, Thirulogasankar Pranav Kutralingam, Yezhou Yang, and Hua Wei** — the authors of **DeepShade** ([arXiv:2507.12103](https://arxiv.org/abs/2507.12103)), whose open-source framework and dataset formed the foundation of this project. ShadeCraft is built directly on top of their work and would not exist without it.
 
-> *Quantitative results to be updated after full training run.*
+- **The Sol Supercomputer Team at ASU** — for providing the computational resources necessary to train the baseline model.
+
+- **ControlNet** (Zhang et al.) and **Stable Diffusion** (Rombach et al.) for the underlying diffusion architecture.
 
 ---
 
 ## 📖 Citation
 
-If you find this work useful, please cite the original DeepShade paper:
+If you use this work, please cite the original DeepShade paper that this project builds upon:
 
 ```bibtex
 @article{da2025deepshade,
@@ -252,14 +256,6 @@ If you find this work useful, please cite the original DeepShade paper:
 
 ---
 
-## 🙏 Acknowledgements
+## � License
 
-- **DeepShade** by Longchao Da et al. — the foundational framework this work builds upon.
-- **ControlNet** by Zhang et al. — for the spatial conditioning architecture.
-- **Stable Diffusion** by Rombach et al. — for the latent diffusion backbone.
-
----
-
-## 📜 License
-
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+This project builds on the DeepShade codebase. See [LICENSE](ControlNet/LICENSE) for the original license terms.
